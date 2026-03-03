@@ -30,8 +30,8 @@ async def inputKey(dut, key:str):
 async def readKey(dut):
     s = ""
     for i in range(loopLimit):
+        outChar = dut.uo_out.value.to_unsigned()
         await ClockCycles(dut.clk, 1)
-        outChar = dut.uo_out.value.integer
         if outChar & (1 << 5): # 5th bit confirms writing
             s += characters[outChar & 0b11111]
         else:
@@ -48,10 +48,20 @@ async def test_project(dut):
 
     res = {}
     for s in testStrings:
-        # Reset
-        await reset(dut)
+        await reset(dut) # Reset
 
         dut._log.info(f"Testing input: [{s}]")
         await inputKey(dut,s)
         page = await readKey(dut) # get page of text
         dut._log.info(f"Output: {page}")
+        res[s] = page
+
+        assert len(page) == 256 #check size of page is correct
+
+    for s in testStrings:
+        await reset(dut) # Reset
+
+        dut._log.info(f"Retesting input: [{s}]")
+        await inputKey(dut,s)
+        page = await readKey(dut) # get page of text
+        assert res[s] == page

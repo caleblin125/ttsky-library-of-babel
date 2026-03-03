@@ -8,15 +8,16 @@ module babel(
     output isWriting
 );
     logic [7:0] counter;
-    logic [4:0] state;
-    logic [4:0] nextState0;
-    logic [4:0] nextState1;
-    logic [4:0] nextState2;
+    logic [15:0] state;
+    logic [15:0] nextState;
+
+    logic [15:7] shift3;
+    assign shift3 = state << 7;
     always_comb begin : randgen //5 bit xorshift
         if(setSeed)begin
-            nextState0 = charIn ^ (state << 2);
+            nextState = {state[15:5], charIn} ^ (state << 2);
         end else begin
-            nextState0 = state ^ (state << 2);
+            nextState = (state ^ {state[14:2], shift3, state[5:1]}) - shift3 + 1;
         end
     end
 
@@ -26,12 +27,8 @@ module babel(
         if(!reset)begin
             state <= 0;
             counter <= 0;
-            nextState1 <= 0;
-            nextState2 <= 0;
         end else if(pageGo) begin
-            state <= nextState2 + nextState0;
-            nextState1 <= nextState0 + 1;
-            nextState2 <= nextState0 ^ (nextState1 << 3);
+            state <= nextState;
             if(!setSeed) begin
                 counter <= counter + 1;
             end
@@ -39,6 +36,6 @@ module babel(
     end
 
     assign isWriting = pageGo;
-    assign charOut = pageGo ? state : 0;
+    assign charOut = pageGo ? state[15:11] : 0;
 
 endmodule

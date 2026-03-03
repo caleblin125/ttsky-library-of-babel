@@ -14,17 +14,17 @@ module babel (
 	output wire [4:0] charOut;
 	output wire isWriting;
 	reg [7:0] counter;
-	reg [4:0] state;
-	reg [4:0] nextState0;
-	reg [4:0] nextState1;
-	reg [4:0] nextState2;
+	reg [15:0] state;
+	reg [15:0] nextState;
+	wire [15:7] shift3;
+	assign shift3 = state << 7;
 	always @(*) begin : randgen
 		if (_sv2v_0)
 			;
 		if (setSeed)
-			nextState0 = charIn ^ (state << 2);
+			nextState = {state[15:5], charIn} ^ (state << 2);
 		else
-			nextState0 = state ^ (state << 2);
+			nextState = ((state ^ {state[14:2], shift3, state[5:1]}) - shift3) + 1;
 	end
 	wire pageGo;
 	assign pageGo = counter != 8'hff;
@@ -32,18 +32,14 @@ module babel (
 		if (!reset) begin
 			state <= 0;
 			counter <= 0;
-			nextState1 <= 0;
-			nextState2 <= 0;
 		end
 		else if (pageGo) begin
-			state <= nextState2 + nextState0;
-			nextState1 <= nextState0 + 1;
-			nextState2 <= nextState0 ^ (nextState1 << 3);
+			state <= nextState;
 			if (!setSeed)
 				counter <= counter + 1;
 		end
 	end
 	assign isWriting = pageGo;
-	assign charOut = (pageGo ? state : 0);
+	assign charOut = (pageGo ? state[15:11] : 0);
 	initial _sv2v_0 = 0;
 endmodule

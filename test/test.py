@@ -6,6 +6,37 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
 characters="abcdefghijklmnopqrstuvwxyz .,!?;"
+testStrings = ["", "a", "cat", "dog", "caleb lin"]
+loopLimit = 1000
+
+async def reset(dut):
+    dut._log.info("Reset")
+    dut.ena.value = 1
+    dut.ui_in.value = 0
+    dut.uio_in.value = 0
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 10)
+    dut.rst_n.value = 1
+
+async def inputKey(dut, key:str):
+    for c in key:
+        if c not in characters:
+            raise ValueError(f"{c} not a valid character in {key}")
+        index = characters.index(c)
+        dut.ui_in.value = index | (1 << 5) # Set 5th bit to 1 to enable inputs
+        await ClockCycles(dut.clk, 1)
+    dut.ui_in.value = 0
+
+async def readKey(dut):
+    s = ""
+    for i in range(loopLimit):
+        await ClockCycles(dut.clk, 1)
+        outChar = dut.uo_out.value.integer
+        if outChar & (1 << 5): # 5th bit confirms writing
+            s += characters[outChar & 0b11111]
+        else:
+            break
+    return s
 
 @cocotb.test()
 async def test_project(dut):
@@ -15,27 +46,12 @@ async def test_project(dut):
     clock = Clock(dut.clk, 10, unit="us")
     cocotb.start_soon(clock.start())
 
-    # Reset
-    dut._log.info("Reset")
-    dut.ena.value = 1
-    dut.ui_in.value = 0
-    dut.uio_in.value = 0
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
-    dut.rst_n.value = 1
+    res = {}
+    for s in testStrings:
+        # Reset
+        await reset(dut)
 
-    dut._log.info("Test project behavior")
-
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
-
-    # Wait for one clock cycle to see the output values
-    await ClockCycles(dut.clk, 1)
-
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
-
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+        dut._log.info(f"Testing input: [{s}]")
+        await inputKey(dut,s)
+        page = await readKey(dut) # get page of text
+        dut._log.info(f"Output: {page}")

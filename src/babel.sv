@@ -4,35 +4,41 @@ module babel(
     input reset,
     input [4:0] charIn, //32 bit: [a-z][ .,!?;]
     input setSeed,
-    output [4:0] charOut //32 bit: [a-z][ .,!?;]
+    output [4:0] charOut, //32 bit: [a-z][ .,!?;]
+    output isWriting
 );
     logic [7:0] counter;
     logic [4:0] state;
-    logic [4:0] nextState[3];
+    logic [4:0] nextState0;
+    logic [4:0] nextState1;
+    logic [4:0] nextState2;
     always_comb begin : randgen //5 bit xorshift
         if(setSeed)begin
-            nextState[0] = state ^ (state << 2);
+            nextState0 = charIn ^ (state << 2);
         end else begin
-            nextState[0] = charIn ^ (state << 2);
+            nextState0 = state ^ (state << 2);
         end
-        nextState[1] = nextState[0] ^ (nextState[0] >> 1);
-        nextState[2] = nextState[1] ^ (nextState[1] << 3);
     end
 
     logic pageGo;
     assign pageGo = (counter != 8'hFF);
     always @(posedge clk) begin : registers
-        if(reset)begin
+        if(!reset)begin
             state <= 0;
             counter <= 0;
+            nextState1 <= 0;
+            nextState2 <= 0;
         end else if(pageGo) begin
-            state <= nextState[2];
+            state <= nextState2 + nextState0;
+            nextState1 <= nextState0 + 1;
+            nextState2 <= nextState0 ^ (nextState1 << 3);
             if(!setSeed) begin
                 counter <= counter + 1;
             end
         end
     end
 
-    assign charOut = pageGo ? 0 : state;
+    assign isWriting = pageGo;
+    assign charOut = pageGo ? state : 0;
 
 endmodule

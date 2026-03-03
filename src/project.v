@@ -16,12 +16,19 @@ module tt_um_library_of_babel_caleblin125 (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  // All output pins must be assigned. If not used, assign to 0.
-  assign uio_out = 0;
-  assign uio_oe  = 0;
+  babel main(
+    .clk(clk),
+    .reset(rst_n),
+    .charIn(ui_in[4:0]),
+    .setSeed(ui_in[5]),
+    .charOut(uo_out[4:0]),
+    .isWriting(uo_out[5])
+  );
 
-  babel main(.clk(clk), .reset(rst_n), .charIn(ui_in[4:0]), .setSeed(ui_in[5]), .charOut(uo_out));
   // List all unused inputs to prevent warnings
   wire _unused = &{ena, uio_in,  1'b0};
+  assign uo_out[7:6] = 0;
+  assign uio_out = 0;
+  assign uio_oe  = 0;
 
 endmodule

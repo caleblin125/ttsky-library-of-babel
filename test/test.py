@@ -5,6 +5,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
+characters="abcdefghijklmnopqrstuvwxyz .,!?;"
 
 @cocotb.test()
 async def test_project(dut):

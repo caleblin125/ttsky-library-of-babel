@@ -6,7 +6,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
 characters="abcdefghijklmnopqrstuvwxyz .,!?;"
-testStrings = ["", "a", "cat", "dog", "caleb lin"]
+testStrings = ["", "a", "cat", "dog", "caleb lin", "page one", "page two"]
 loopLimit = 1000
 
 async def reset(dut):
@@ -65,3 +65,12 @@ async def test_project(dut):
         await inputKey(dut,s)
         page = await readKey(dut) # get page of text
         assert res[s] == page
+    
+    counts = [0]*32  #Check randomness
+    for s in testStrings:
+        for i in range(32):
+            counts[i] += res[s].count(characters[i])
+    dut._log.info(f"Character counts: {counts}")
+    avg = sum(counts)/32
+    dut._log.info(f"Character count mean: {avg}")
+    dut._log.info(f"Character count variance: {(sum([(c-avg)**2 for c in counts])/32)**0.5}")

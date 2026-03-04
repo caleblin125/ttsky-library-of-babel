@@ -11,13 +11,11 @@ module babel(
     logic [15:0] state;
     logic [15:0] nextState;
 
-    logic [15:7] shift3;
-    assign shift3 = state << 7;
-    always_comb begin : randgen //5 bit xorshift
+    always_comb begin : randgen //16 bit random-esque function
         if(setSeed)begin
-            nextState = {state[15:5], charIn} ^ (state << 2);
+            nextState = {state[10:5]+1'b1, charIn, state[15:11]} ^ (state << 2);
         end else begin
-            nextState = (state ^ {state[14:2], shift3, state[5:1]}) - shift3 + 1;
+            nextState = (state ^ {state[3:0], state[15:12], state[11:8], state[7:4]}) + {state[7:3], state[7:3], state[15:14], 4'b1101};
         end
     end
 

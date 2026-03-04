@@ -16,15 +16,13 @@ module babel (
 	reg [7:0] counter;
 	reg [15:0] state;
 	reg [15:0] nextState;
-	wire [15:7] shift3;
-	assign shift3 = state << 7;
 	always @(*) begin : randgen
 		if (_sv2v_0)
 			;
 		if (setSeed)
-			nextState = {state[15:5], charIn} ^ (state << 2);
+			nextState = {state[10:5] + 1'b1, charIn, state[15:11]} ^ (state << 2);
 		else
-			nextState = ((state ^ {state[14:2], shift3, state[5:1]}) - shift3) + 1;
+			nextState = (state ^ {state[3:0], state[15:12], state[11:8], state[7:4]}) + {state[7:3], state[7:3], state[15:14], 4'b1101};
 	end
 	wire pageGo;
 	assign pageGo = counter != 8'hff;

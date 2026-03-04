@@ -39,7 +39,7 @@ pinout:
   uo[2]: "bit 2 of output character"
   uo[3]: "bit 3 of output character"
   uo[4]: "bit 4 of output character"
-  uo[5]: ""
+  uo[5]: "output valid"
   uo[6]: ""
   uo[7]: ""
 

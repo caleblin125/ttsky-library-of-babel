@@ -16,10 +16,10 @@ echo "CPUs: $SLURM_CPUS_PER_TASK"
 cd $SLURM_SUBMIT_DIR
 
 # Load python if needed
-module load python
+#module load python
 
 # Activate virtual environment if you use one
-# source ~/venv/bin/activate
+source $PROJECT/venv/bin/activate
 
 # Run the search
 python find_function.py search

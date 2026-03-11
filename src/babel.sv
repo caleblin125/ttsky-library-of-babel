@@ -15,7 +15,7 @@ module babel(
         if(setSeed)begin
             nextState = {state[10:5]+1'b1, charIn, state[15:11]} ^ (state << 2);
         end else begin
-            nextState = (state ^ {state[3:0], state[15:12], state[11:8], state[7:4]}) + {state[7:3], state[7:3], state[15:14], 4'b1101};
+            nextState = (((~(24224 >> 15)) + ((64581 | state) - (~47795))) ^ (((state << 6) & (state + state)) + ((15181 >> 2) & (35017 & state))));
         end
     end
 
@@ -23,7 +23,7 @@ module babel(
     assign pageGo = (counter != 8'hFF);
     always @(posedge clk) begin : registers
         if(!reset)begin
-            state <= 0;
+            state <= 24885;
             counter <= 0;
         end else if(pageGo) begin
             state <= nextState;

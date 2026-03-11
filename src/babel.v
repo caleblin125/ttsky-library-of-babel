@@ -22,13 +22,13 @@ module babel (
 		if (setSeed)
 			nextState = {state[10:5] + 1'b1, charIn, state[15:11]} ^ (state << 2);
 		else
-			nextState = (state ^ {state[3:0], state[15:12], state[11:8], state[7:4]}) + {state[7:3], state[7:3], state[15:14], 4'b1101};
+			nextState = (~0 + ((64581 | state) - ~47795)) ^ (((state << 6) & (state + state)) + (3795 & (35017 & state)));
 	end
 	wire pageGo;
 	assign pageGo = counter != 8'hff;
 	always @(posedge clk) begin : registers
 		if (!reset) begin
-			state <= 0;
+			state <= 24885;
 			counter <= 0;
 		end
 		else if (pageGo) begin

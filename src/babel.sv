@@ -1,14 +1,13 @@
 
-
 function [15:0] rng_step;
     input [15:0] state;
     reg [15:0] s;
     begin
         s = state;
-        s = s * 16'd883;
-        s = s + 16'd33139;
-        s = s ^ (s >> 7);
-        s = s + 16'd5845;
+        s = s + 16'd52143;
+        s = s ^ (s << 4);
+        s = s ^ 16'd19464;
+        s = s ^ (s << 7);
         rng_step = s;
     end
 endfunction
@@ -37,7 +36,7 @@ module babel(
     assign pageGo = (counter != 8'hFF);
     always @(posedge clk) begin : registers
         if(reset)begin
-            state <= 44935;
+            state <= 5862;
             counter <= 0;
         end else if(pageGo) begin
             state <= nextState;

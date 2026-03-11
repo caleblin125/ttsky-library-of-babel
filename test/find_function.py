@@ -21,10 +21,12 @@ PROGRAM_LEN = 4
 
 characters = "abcdefghijklmnopqrstuvwxyz .,!?;"
 
-desiredText = (
-"to be, or not to be, that is the question whether tis nobler in the mind "
-"to suffer the slings and arrows"
-)
+# desiredText = (
+# "to be, or not to be, that is the question whether tis nobler in the mind "
+# "to suffer the slings and arrows"
+# )
+
+desiredText = "welcome to babel"
 
 desiredIdx = np.array([characters.index(c) for c in desiredText], dtype=np.int32)
 # print(desiredIdx)
@@ -168,7 +170,7 @@ def scan_seeds(ops, vals, desired):
 def save_result(program, seed, prefix):
 
     data = {
-        "program": program,
+        "program": [[OPS[p[0]], p[1]] for p in program],
         "seed": int(seed),
         "prefix": int(prefix)
     }

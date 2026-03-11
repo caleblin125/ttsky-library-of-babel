@@ -1,3 +1,5 @@
+babel_*.err
+babel_*.out
 .DS_Store
 .idea
 *.vcd

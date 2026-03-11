@@ -1,4 +1,17 @@
 
+function [15:0] rng_step;
+    input [15:0] state;
+    reg [15:0] s;
+    begin
+        s = state;
+        s = s ^ (s << 5);
+        s = s + 16'd62179;
+        s = s ^ 16'd10208;
+        s = s ^ (s << 7);
+        rng_step = s;
+    end
+endfunction
+
 module babel(
     input clk,
     input reset,
@@ -15,7 +28,7 @@ module babel(
         if(setSeed)begin
             nextState = {state[10:5]+1'b1, charIn, state[15:11]} ^ (state << 2);
         end else begin
-            nextState = (((~(24224 >> 15)) + ((64581 | state) - (~47795))) ^ (((state << 6) & (state + state)) + ((15181 >> 2) & (35017 & state))));
+            nextState = rng_step(state);
         end
     end
 
@@ -23,7 +36,7 @@ module babel(
     assign pageGo = (counter != 8'hFF);
     always @(posedge clk) begin : registers
         if(!reset)begin
-            state <= 24885;
+            state <= 27143;
             counter <= 0;
         end else if(pageGo) begin
             state <= nextState;

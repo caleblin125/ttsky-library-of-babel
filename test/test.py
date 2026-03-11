@@ -5,7 +5,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
-characters=";?!,.zyxvuswrqpnckmji oehgfdtbal"
+characters="gifh;t?!w.ezy,xbvqpmdskrno jalcu"
 testStrings = ["", "a", "cat", "dog", "caleb lin", "page one", "page two"]
 loopLimit = 1000
 

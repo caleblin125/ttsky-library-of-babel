@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import time
+import numpy as np
+from numba import njit, prange, int64
 
 # -------------------------
 # parameters
@@ -24,9 +26,20 @@ desiredText = (
 "to suffer the slings and arrows"
 )
 
+desiredIdx = np.array([characters.index(c) for c in desiredText], dtype=np.int32)
+print(desiredIdx)
+
 RESULT_FILE = "best_results.jsonl"
 
 OPS = ["xor_lshift","xor_rshift","add","mul","xor_const"]
+
+# opcode encoding
+OP_XOR_LSHIFT = 0
+OP_XOR_RSHIFT = 1
+OP_ADD = 2
+OP_MUL = 3
+OP_XOR_CONST = 4
+
 
 # -------------------------
 # program generation
@@ -36,88 +49,116 @@ def random_instruction():
 
     op = random.choice(OPS)
 
-    if op in ("xor_lshift","xor_rshift"):
-        return (op, random.randint(1,7))
+    if op == "xor_lshift":
+        return (OP_XOR_LSHIFT, random.randint(1,7))
+
+    if op == "xor_rshift":
+        return (OP_XOR_RSHIFT, random.randint(1,7))
 
     if op == "add":
-        return (op, random.randint(1,65535))
+        return (OP_ADD, random.randint(1,65535))
 
     if op == "mul":
-        return (op, random.randint(3,65535) | 1)
+        return (OP_MUL, random.randint(3,65535) | 1)
 
     if op == "xor_const":
-        return (op, random.randint(1,65535))
+        return (OP_XOR_CONST, random.randint(1,65535))
 
 
 def random_program():
     return [random_instruction() for _ in range(PROGRAM_LEN)]
 
 
+def program_to_arrays(program):
+
+    ops = np.zeros(PROGRAM_LEN, dtype=np.int32)
+    vals = np.zeros(PROGRAM_LEN, dtype=np.int32)
+
+    for i,(op,val) in enumerate(program):
+        ops[i] = op
+        vals[i] = val
+
+    return ops, vals
+
+
 # -------------------------
-# RNG execution
+# numba RNG step
 # -------------------------
 
-def run_program(state, program):
+@njit
+def step(state, ops, vals):
 
-    for op,val in program:
+    for i in range(len(ops)):
 
-        if op == "xor_lshift":
-            state ^= (state << val)
+        op = ops[i]
+        v = vals[i]
 
-        elif op == "xor_rshift":
-            state ^= (state >> val)
+        if op == OP_XOR_LSHIFT:
+            state ^= (state << v)
 
-        elif op == "add":
-            state += val
+        elif op == OP_XOR_RSHIFT:
+            state ^= (state >> v)
 
-        elif op == "mul":
-            state *= val
+        elif op == OP_ADD:
+            state += v
 
-        elif op == "xor_const":
-            state ^= val
+        elif op == OP_MUL:
+            state *= v
+
+        elif op == OP_XOR_CONST:
+            state ^= v
 
         state &= STATE_MASK
 
     return state
 
 
-def output_char(state):
-    return (state >> (statelength - charsize)) & CHAR_MASK
-
-
 # -------------------------
 # prefix verification
 # -------------------------
 
-def verify_prefix(program, init):
+@njit
+def verify_prefix_seed(seed:int, ops, vals, desired:np.ndarray[int]) -> int:
 
-    mapping = {}
-    used = set()
+    mapping = np.full(32, -1, np.int32)
+    used = np.zeros(32, np.uint8)
 
-    state = init
-    count = 0
+    state = int64(seed)
 
-    for c in desiredText:
+    for i in range(len(desired)):
 
-        state = run_program(state, program)
-        out = output_char(state)
+        state = step(state, ops, vals)
 
-        if out in mapping:
+        out = state >> (statelength - charsize)
+        c = desired[i]
 
-            if mapping[out] != c:
-                return count
+        m = mapping[out]
 
+        if m != -1:
+            if m != c:
+                return i
         else:
-
-            if c in used:
-                return count
-
+            if used[c] == 1:
+                return i
             mapping[out] = c
-            used.add(c)
+            used[c] = 1
 
-        count += 1
+    return len(desired)
 
-    return count
+
+# -------------------------
+# scan all seeds (parallel)
+# -------------------------
+
+@njit(parallel=True)
+def scan_seeds(ops, vals, desired):
+    prefixes = np.zeros(65536, dtype=np.int32)
+    
+    for seed in prange(65536):
+        prefixes[seed] = verify_prefix_seed(seed, ops, vals, desired)
+    
+    best_idx = np.argmax(prefixes)
+    return prefixes[best_idx], best_idx
 
 
 # -------------------------
@@ -128,8 +169,8 @@ def save_result(program, seed, prefix):
 
     data = {
         "program": program,
-        "seed": seed,
-        "prefix": prefix
+        "seed": int(seed),
+        "prefix": int(prefix)
     }
 
     with open(RESULT_FILE,"a") as f:
@@ -155,36 +196,39 @@ def load_best():
 
 
 # -------------------------
-# build encoding
+# encoding generation
 # -------------------------
 
 def build_encoding(program, seed):
 
-    mapping = {}
-    used = set()
+    ops,vals = program_to_arrays(program)
+
+    mapping = [-1]*32
+    used = [False]*32
 
     state = seed
 
-    for c in desiredText:
+    for c in desiredIdx:
 
-        state = run_program(state, program)
-        out = output_char(state)
+        state = step(state, ops, vals)
+        out = state >> (statelength - charsize)
 
-        if (out not in mapping) and (c not in used):
+        if mapping[out] == -1 and not used[c]:
+
             mapping[out] = c
-            used.add(c)
+            used[c] = True
+
+    remaining = [i for i in range(len(characters)) if not used[i]]
 
     code = []
 
-    remaining = [c for c in characters if c not in used]
+    for i in range(32):
 
-    for i in range(1<<charsize):
-
-        if i in mapping:
-            code.append(mapping[i])
+        if mapping[i] != -1:
+            code.append(characters[mapping[i]])
 
         elif remaining:
-            code.append(remaining.pop())
+            code.append(characters[remaining.pop()])
 
         else:
             code.append("?")
@@ -208,19 +252,19 @@ def program_to_verilog(program):
 
     for op,val in program:
 
-        if op == "xor_lshift":
+        if op == OP_XOR_LSHIFT:
             lines.append(f"        s = s ^ (s << {val});")
 
-        elif op == "xor_rshift":
+        elif op == OP_XOR_RSHIFT:
             lines.append(f"        s = s ^ (s >> {val});")
 
-        elif op == "add":
+        elif op == OP_ADD:
             lines.append(f"        s = s + 16'd{val};")
 
-        elif op == "mul":
+        elif op == OP_MUL:
             lines.append(f"        s = s * 16'd{val};")
 
-        elif op == "xor_const":
+        elif op == OP_XOR_CONST:
             lines.append(f"        s = s ^ 16'd{val};")
 
     lines.append("        rng_step = s;")
@@ -231,7 +275,7 @@ def program_to_verilog(program):
 
 
 # -------------------------
-# worker search
+# worker
 # -------------------------
 
 def worker(proc_id):
@@ -242,36 +286,42 @@ def worker(proc_id):
     best_prefix = best_data["prefix"] if best_data else 0
 
     print(f"[proc {proc_id}] starting best =", best_prefix)
-
+    
+    count = 0
+    startTime = time.time()
     while True:
 
         program = random_program()
+        ops,vals = program_to_arrays(program)
 
-        for seed in range(65536):
+        prefix,seed = scan_seeds(ops, vals, desiredIdx)
 
-            prefix = verify_prefix(program, seed)
+        if prefix > best_prefix:
 
-            if prefix > best_prefix:
+            best_prefix = prefix
 
-                best_prefix = prefix
+            print(
+                f"[proc {proc_id}] new best:",
+                prefix,
+                program,
+                seed
+            )
 
-                print(
-                    f"[proc {proc_id}] new best:",
-                    prefix,
-                    program,
-                    seed
-                )
-
-                save_result(program, seed, prefix)
+            save_result(program, seed, prefix)
+        
+        count += 1
+        # if count % 10 == 0:
+        #     print(f"{count / (time.time() - startTime)} functions per second")
+        #     print(f"{count * (1<<16) / (time.time() - startTime)} searches per second")
 
 
 # -------------------------
-# search mode
+# search
 # -------------------------
 
 def search():
 
-    cpu = mp.cpu_count()
+    cpu = int(os.environ.get("SLURM_CPUS_PER_TASK", mp.cpu_count()))
 
     print("Starting search on", cpu, "cores")
 

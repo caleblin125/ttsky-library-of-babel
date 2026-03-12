@@ -3,9 +3,9 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
 
-characters="gifh;t?!w.ezy,xbvqpmdskrno jalcu"
+characters=";th?,afr!i .zsyxwdbnveqpmkgjcuol"
 testStrings = ["", "a", "cat", "dog", "caleb lin", "page one", "page two"]
 loopLimit = 1000
 
@@ -14,9 +14,10 @@ async def reset(dut):
     dut.ena.value = 1
     dut.ui_in.value = 0
     dut.uio_in.value = 0
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 10)
+    await FallingEdge(dut.clk)
+    dut.rst_n.value = 0
 
 async def inputKey(dut, key:str):
     for c in key:
@@ -30,8 +31,8 @@ async def inputKey(dut, key:str):
 async def readKey(dut):
     s = ""
     for i in range(loopLimit):
-        outChar = dut.uo_out.value.to_unsigned()
         await ClockCycles(dut.clk, 1)
+        outChar = dut.uo_out.value.to_unsigned()
         if outChar & (1 << 5): # 5th bit confirms writing
             s += characters[outChar & 0b11111]
         else:
@@ -56,7 +57,7 @@ async def test_project(dut):
         dut._log.info(f"Output: {page}")
         res[s] = page
 
-        assert len(page) == 256 #check size of page is correct
+        assert len(page) == 255 #check size of page is correct
 
     for s in testStrings:
         await reset(dut) # Reset

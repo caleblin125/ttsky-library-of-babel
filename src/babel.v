@@ -21,10 +21,10 @@ module babel (
 		reg [15:0] s;
 		begin
 			s = state;
-			s = s ^ (s << 5);
-			s = s + 16'd62179;
-			s = s ^ 16'd10208;
-			s = s ^ (s << 7);
+			s = s * 16'd883;
+			s = s + 16'd33139;
+			s = s ^ (s >> 7);
+			s = s + 16'd5845;
 			rng_step = s;
 		end
 	endfunction
@@ -39,8 +39,8 @@ module babel (
 	wire pageGo;
 	assign pageGo = counter != 8'hff;
 	always @(posedge clk) begin : registers
-		if (!reset) begin
-			state <= 27143;
+		if (reset) begin
+			state <= 44935;
 			counter <= 0;
 		end
 		else if (pageGo) begin

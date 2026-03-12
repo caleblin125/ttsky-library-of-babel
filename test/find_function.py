@@ -27,7 +27,7 @@ desiredText = (
 )
 
 desiredIdx = np.array([characters.index(c) for c in desiredText], dtype=np.int32)
-print(desiredIdx)
+# print(desiredIdx)
 
 RESULT_FILE = "best_results.jsonl"
 
@@ -73,7 +73,7 @@ def program_to_arrays(program):
 
     ops = np.zeros(PROGRAM_LEN, dtype=np.int32)
     vals = np.zeros(PROGRAM_LEN, dtype=np.int32)
-
+    
     for i,(op,val) in enumerate(program):
         ops[i] = op
         vals[i] = val
@@ -199,8 +199,7 @@ def load_best():
 # encoding generation
 # -------------------------
 
-def build_encoding(program, seed):
-
+def build_encoding(program:list[(str,int)], seed):
     ops,vals = program_to_arrays(program)
 
     mapping = [-1]*32
@@ -251,7 +250,6 @@ def program_to_verilog(program):
     lines.append("        s = state;")
 
     for op,val in program:
-
         if op == OP_XOR_LSHIFT:
             lines.append(f"        s = s ^ (s << {val});")
 
@@ -350,6 +348,7 @@ def print_best():
         return
 
     program = best["program"]
+    pEncoded = [(OPS.index(p[0]), p[1]) for p in program]
     seed = best["seed"]
     prefix = best["prefix"]
 
@@ -359,12 +358,12 @@ def print_best():
 
     print("\nEncoding table:\n")
 
-    encoding = build_encoding(program, seed)
+    encoding = build_encoding(pEncoded, seed)
     print(encoding)
 
     print("\nVerilog RNG:\n")
 
-    print(program_to_verilog(program))
+    print(program_to_verilog(pEncoded))
 
 
 # -------------------------

@@ -152,3 +152,4 @@
 {"program": [["xor_rshift", 6], ["mul", 50119], ["xor_rshift", 6], ["xor_const", 12590]], "seed": 12175, "prefix": 14}
 {"program": [["mul", 16955], ["xor_rshift", 7], ["xor_lshift", 7], ["xor_const", 43278]], "seed": 45484, "prefix": 13}
 {"program": [["xor_rshift", 4], ["mul", 17789], ["add", 19285], ["add", 2845]], "seed": 54151, "prefix": 14}
+{"program": [[0, 7], [2, 26034], [4, 42783], [1, 4]], "seed": 61060, "prefix": 15}

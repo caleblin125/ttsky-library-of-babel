@@ -118,7 +118,7 @@ def step(state, ops, vals):
 # -------------------------
 
 @njit
-def verify_prefix_seed(seed:int, ops, vals, desired:np.ndarray[int]) -> int:
+def verify_prefix_seed(seed:int, ops, vals, desired) -> int:
 
     mapping = np.full(32, -1, np.int32)
     used = np.zeros(32, np.uint8)

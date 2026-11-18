@@ -1,42 +1,75 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 
-# Tiny Tapeout Verilog Project Template
+# Library of Babel — a Tiny Tapeout chip
 
-- [Read the documentation for project](docs/info.md)
+A tiny ASIC that "writes" pages of the
+[Library of Babel](https://en.wikipedia.org/wiki/The_Library_of_Babel): every
+possible page of text, generated on demand from a seed instead of stored.
+Designed in SystemVerilog for [Tiny Tapeout](https://tinytapeout.com) on the
+SkyWater 130 nm process (one 167 × 108 µm tile).
 
-## What is Tiny Tapeout?
+It is also an infinite-monkey experiment: the pseudorandom generator was
+**searched** so that one particular seed makes the chip type out the opening of
+Hamlet's soliloquy.
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
+## How it works
 
-To learn more and get started, visit https://tinytapeout.com.
+* The chip holds a **16-bit state** and steps it every clock with a small
+  hash-like function (multiply, add, xor-shift). The top 5 bits of the state
+  select one of 32 characters: `a`–`z` plus ` .,!?;`.
+* **Seeding:** while `ui[5]` (enable input) is high, the 5-bit character on
+  `ui[4:0]` is mixed into the state each cycle, so any short string acts as a
+  "book address".
+* **Writing:** after seeding, the chip emits one character per clock on
+  `uo[4:0]` with `uo[5]` (output valid) high, for a fixed-length page of 255
+  characters, then stops.
 
-## Set up your Verilog project
+### Searching for Shakespeare
 
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
+[`test/find_function.py`](test/find_function.py) searches the space of
+four-instruction RNG programs (xor-left-shift, xor-right-shift, add, multiply,
+xor-constant). For each candidate program it checks **all 65,536 seeds** in
+parallel with Numba (`@njit(parallel=True)`) and scores how many leading
+characters match the target text. It ran as a 64-core batch job on the PSC
+Bridges-2 supercomputer ([`test/slurm_find.bat`](test/slurm_find.bat)).
 
-The GitHub action will automatically build the ASIC files using [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/).
+The best program found so far reproduces the first **15 characters**
+(`to be, or not t`) from a single seed. Results are logged to
+[`test/best_results.jsonl`](test/best_results.jsonl), and
+`python find_function.py print` emits the winning function as Verilog.
 
-## Enable GitHub actions to build the results page
+```bash
+cd test
+pip install numba numpy
+python find_function.py search     # run the search (uses all cores)
+python find_function.py print      # print the best RNG as Verilog
+```
 
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
+## Pinout
 
-## Resources
+| Pin | Direction | Function |
+|---|---|---|
+| `ui[4:0]` | in | seed character index |
+| `ui[5]` | in | enable seed input |
+| `uo[4:0]` | out | output character index |
+| `uo[5]` | out | output valid (page still being written) |
 
-- [FAQ](https://tinytapeout.com/faq/)
-- [Digital design lessons](https://tinytapeout.com/digital_design/)
-- [Learn how semiconductors work](https://tinytapeout.com/siliwiz/)
-- [Join the community](https://tinytapeout.com/discord)
-- [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
+## Testing
 
-## What next?
+The cocotb testbench in [`test/`](test/) seeds the design with several strings
+and reads back the generated pages:
 
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
-  - Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
+```bash
+cd test
+pip install -r requirements.txt
+make        # runs the RTL simulation with Icarus Verilog
+```
+
+GitHub Actions also run the test suite, build the GDS layout with LibreLane,
+and generate the datasheet ([`docs/info.md`](docs/info.md)).
+
+## About Tiny Tapeout
+
+Tiny Tapeout is an educational project that makes it cheap and easy to get
+digital designs manufactured on a real chip. Learn more at
+https://tinytapeout.com.
